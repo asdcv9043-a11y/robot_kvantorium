@@ -11,6 +11,7 @@
 #define Green 70 // Записать сюда значение датчика на зеленом поле
 #define Black 50 // Записать сюда значение датчика не черном поле
 #define TimeTyrn 5000 // Записать сюда время 1 полного разворота на месте
+#define TURN_TIME 450 // Записать сюда время 1 оворота на 90 градусов
 
 Servo servo;
 
@@ -30,67 +31,68 @@ int getDist(){  // Замер дистанции
 
 
 
-int driveLine(int Time, int sped){ // Езда по линии с определенной скоростью, определенное время
-  unsigned long currentMillis = millis();
-  while(!(analogRead(sensC) > Black) && uDigitalRead(sensR) && uDigitalRead(sensL) && (millis() - currentMillis < Time)){
-    drive(sped, sped);
-  }
-  while((analogRead(sensC) > Black) && !uDigitalRead(sensR) && uDigitalRead(sensL)){
-    drive(0, sped / 2);
-  }
-  while((analogRead(sensC) > Black) && uDigitalRead(sensR) && !uDigitalRead(sensL)){
-    drive(sped / 2, 0);
-  }
+int driveLine(int Time, int speed){ // Езда по линии с определенной скоростью, определенное время
+  unsigned long t0 = millis();
   
-  drive(0 , 0);
-  
-  if (!uDigitalRead(sensR) && !(analogRead(sensC) > Black) && uDigitalRead(sensL)){
-    return 1; // Есть возможность повернуть направо
+  while (millis() - t0 < Time){
+    int C = analogRead(sensC);
+    bool L = uDigitalRead(sensL);
+    bool R = uDigitalRead(sensR);
+
+    if (C < Black){
+      drive(speed, speed);
+    }
+    else if (!R && L){
+      drive(speed / 2, 0);
+    }
+    else if (R && !L){
+      drive(0, speed / 2);
+    }
+    else{
+      break; // перекрёсток или тупик
+    }
   }
-  else if (uDigitalRead(sensR) && !(analogRead(sensC) > Black) && !uDigitalRead(sensL)){
-    return 2; // Есть возможность повернуть налево
-  }
-  else{
-    return 0; // Никуда не повернуть
-  }
+
+  drive(0, 0);
+
+  if (!uDigitalRead(sensR) && uDigitalRead(sensL)) return 1;
+  if (uDigitalRead(sensR) && !uDigitalRead(sensL)) return 2;
+  return 0;
 }
 
 
 
-int checkDist(int Direction){  // Смотри дистанцию, поворачивая серву: 0 - Прямо, 1 - Право, 2 - Лево
+int checkDist(int Direction){  // Смотрит дистанцию, поворачивая серву: 0 - Прямо, 1 - Право, 2 - Лево
   if (Direction == 2){
     servo.write(0);
-    delay(1000);
-    return getDist();
   }
   else if (Direction == 1){
     servo.write(180);
-    delay(1000);
-    return getDist();
   }
   else{
     servo.write(90);
-    delay(1000);
-    return getDist();
   }
+  delay(1000);
+  return getDist();
 }
 
 
-void tyrn(int Direction){  //Повернуть: 1 - Право, 2 - Лево, 0 - пропуск
-  if (Direction == 1){
-    drive(50, 50);
-    delay(500);
-    drive(127, 0);
-    delay(500);
-    drive(0, 0);
+
+void tyrn(int Direction){ //Повернуть: 1 - Право, 2 - Лево, 0 - пропуск
+  drive(60, 60);
+  delay(200);
+
+  if (Direction == 1){        // вправо
+    drive(100, -100);
   }
-  else if (Direction == 2){
-    drive(50, 50);
-    delay(500);
-    drive(0, 127);
-    delay(500);
-    drive(0, 0);
+  else if (Direction == 2){   // влево
+    drive(-100, 100);
   }
+  else {
+    return;
+  }
+  delay(TURN_TIME);
+  drive(0, 0);
 }
 
 
@@ -100,7 +102,7 @@ void skittle(){ // Сбить все кегли
   int Timer = 0;
   while (millis() - currentMillis < TimeTyrn - Timer){
     
-    while (getDist() > 200){
+    while ((getDist() > 200) && (millis() - currentMillis < TimeTyrn - Timer)){
       drive(50, -50);
     }
     Timer = millis() - currentMillis;
@@ -109,11 +111,48 @@ void skittle(){ // Сбить все кегли
     }
     drive(-70, -70);
     delay(500);
-    while (analogRead(sensC) > Green){
+    while (analogRead(sensC) > Black){
       drive(-70, -70);
     }
 
-    currentMillis = millis()
+    currentMillis = millis();
+  }
+}
+
+
+
+void goToSkittle(){ // Доехать от точки старта до кеглей (Остановиться на зеленом поле)
+  while(analogRead(sensC) <= (Green + 10)){
+    drive(100, 100);
+  }
+  delay(200);
+  while(analogRead(sensC) > Green){
+  }
+  drive(0, 0);
+}
+
+
+
+void labyrinth(){ // Пройти лабиринт
+  while (getDist() < 200){
+    while(getDist() > 15){
+      drive(100, 100);
+    }
+    drive(0, 0);
+    tyrn(dawn());
+  }
+}
+
+
+
+int dawn(){ // пусто 1 - справа, 2 - слева
+  int L = checkDist(2);
+  int R = checkDist(1);
+  if ((L > R) && (L > checkDist(0))){
+    return 2;
+  }
+  else{
+    return 1;
   }
 }
 
