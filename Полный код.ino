@@ -25,7 +25,7 @@ int getDist(){  // Замер дистанции
   digitalWrite(trig, 0);
   
   int dist;
-  dist = pulseIn(echo, HIGH) / 58.2;
+  dist = pulseIn(echo, HIGH, 25000) / 58.2;
   return dist;
 }
 
