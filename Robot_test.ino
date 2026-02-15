@@ -1,8 +1,8 @@
 #include <Strela.h>
 
-#define sensL P5
-#define sensR P6
-#define sensC P7
+#define sensL P7
+#define sensR P5
+#define sensC P6
 
 
 
